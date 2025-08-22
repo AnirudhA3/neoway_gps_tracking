@@ -4,9 +4,9 @@ import re
 from geopy.distance import geodesic
 
 # ---------------- CONFIG ----------------
-SERIAL_PORT = 'COM15'        # Replace with your Neoway serial port
-BAUD_RATE = 9600             # Neoway default
-FIXED_LOCATION = (12.284391, 76.615086)  # Replace with your reference location (lat, lon)
+SERIAL_PORT = 'COM17'        # Replace with your Neoway serial port
+BAUD_RATE =9600          # Neoway default
+FIXED_LOCATION = (12.2845143, 76.6151551)  # Replace with your reference location (lat, lon)
 FETCH_INTERVAL = 1         # seconds
 # ---------------------------------------
 
@@ -40,7 +40,7 @@ def parse_gpgga(sentence):
     """
     try:
         parts = sentence.split(',')
-        if parts[0] != '$GPGGA':
+        if parts[0] != '$GNGGA':
             return None
 
         utc_time = parts[1]
@@ -100,9 +100,11 @@ def get_gps_position(type=0, mode=0):
     # OK
 
     # Extract the NMEA sentence from the response
-    nmea_match = re.search(r'\$MYGPSPOS:\s*(\$(GPGGA|GPGSA|GPGSV|GPRMC|GPVTG|GPGLL)[^\r\n]*)', raw_resp)
-    if not nmea_match:
-        return None
+    print(raw_resp)
+    nmea_match = re.search(r'\$MYGPSPOS:\s*(\$(GNGGA|GPGGA|GPGSA|GPGSV|GPRMC|GPVTG|GPGLL)[^\r\n]*)', raw_resp)
+
+    # if not nmea_match:
+    #     return None
 
     nmea_sentence = nmea_match.group(1).strip()
 
@@ -151,11 +153,11 @@ def main():
     enable_periodic_output()
 
     # Wait for GPS fix with timeout of 2 minutes
-    pos = wait_for_fix(timeout=120, check_interval=5)
-    if not pos:
-        print("Failed to get GPS fix, exiting...")
-        ser.close()
-        return
+    # pos = wait_for_fix(timeout=120, check_interval=5)
+    # if not pos:
+    #     print("Failed to get GPS fix, exiting...")
+    #     ser.close()
+    #     return
 
     try:
         while True:
