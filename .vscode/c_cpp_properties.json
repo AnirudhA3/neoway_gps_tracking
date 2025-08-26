@@ -1,0 +1,61 @@
+// ...existing code...
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "compilerPath": "C:\\Users\\Anirudh\\msys64\\ucrt64\\bin\\g++.exe",
+            "intelliSenseMode": "windows-gcc-x86",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Users/Anirudh/msys64/ucrt64/include",
+                "C:/Users/Anirudh/msys64/ucrt64/include/c++/**",
+                "C:/Users/Anirudh/msys64/mingw64/include",
+                "C:/Windows/System32/WinSxS/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "C:/Users/Anirudh/msys64/ucrt64/include",
+                    "C:/Users/Anirudh/msys64/ucrt64/include/c++"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        },
+        {
+            "name": "Win64-ucrt64",
+            "compilerPath": "C:\\Users\\Anirudh\\msys64\\ucrt64\\bin\\g++.exe",
+            "intelliSenseMode": "windows-gcc-x64",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Users/Anirudh/msys64/ucrt64/include",
+                "C:/Users/Anirudh/msys64/ucrt64/include/c++/**",
+                "C:/Users/Anirudh/msys64/mingw64/include",
+                "C:/Windows/System32/WinSxS/**"
+            ],
+            "defines": [
+                "_DEBUG",
+                "UNICODE",
+                "_UNICODE"
+            ],
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "browse": {
+                "path": [
+                    "${workspaceFolder}",
+                    "C:/Users/Anirudh/msys64/ucrt64/include",
+                    "C:/Users/Anirudh/msys64/ucrt64/include/c++"
+                ],
+                "limitSymbolsToIncludedHeaders": true
+            }
+        }
+    ],
+    "version": 4
+}
+// ...existing code...
