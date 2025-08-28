@@ -1,0 +1,200 @@
+#include <windows.h>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <sstream>
+#include <chrono>
+#include <iomanip>
+#include <cmath>   // for floor()
+
+using namespace std;
+
+// ================== Utility ====================
+vector<string> split(const string& s, char delim) {
+    vector<string> elems;
+    string item;
+    stringstream ss(s);
+    while (getline(ss, item, delim)) {
+        elems.push_back(item);
+    }
+    return elems;
+}
+
+// ================== Serial Helpers ====================
+HANDLE openSerial(const string& port, DWORD baud=115200) {
+    HANDLE h = CreateFileA(port.c_str(), GENERIC_READ | GENERIC_WRITE, 0, NULL,
+                           OPEN_EXISTING, 0, NULL);
+
+    if (h == INVALID_HANDLE_VALUE) {
+        cerr << "Error opening serial port " << port << endl;
+        exit(1);
+    }
+
+    DCB dcb = {0};
+    dcb.DCBlength = sizeof(DCB);
+    dcb.BaudRate = baud;
+    dcb.ByteSize = 8;
+    dcb.StopBits = ONESTOPBIT;
+    dcb.Parity   = NOPARITY;
+    SetCommState(h, &dcb);
+
+    COMMTIMEOUTS timeouts = {0};
+    timeouts.ReadIntervalTimeout         = 50;
+    timeouts.ReadTotalTimeoutConstant    = 50;
+    timeouts.ReadTotalTimeoutMultiplier  = 10;
+    timeouts.WriteTotalTimeoutConstant   = 50;
+    timeouts.WriteTotalTimeoutMultiplier = 10;
+    SetCommTimeouts(h, &timeouts);
+
+    return h;
+}
+
+// Declaration
+string readSerial(HANDLE h, DWORD maxBytes, int maxTimeMs, int &elapsed, size_t &respSize);
+
+// ================== Implementation ====================
+string readSerial(HANDLE h, DWORD maxBytes, int maxTimeMs, int &elapsed, size_t &respSize) {
+    auto start = chrono::steady_clock::now();
+    string data;
+    char buf[512];
+    DWORD n;
+    respSize = 0;
+
+    while (true) {
+        if (ReadFile(h, buf, sizeof(buf) - 1, &n, NULL) && n > 0) {
+            buf[n] = 0;
+            data.append(buf, n);
+            respSize += n;
+        }
+        auto now = chrono::steady_clock::now();
+        elapsed = chrono::duration_cast<chrono::milliseconds>(now - start).count();
+        if (elapsed >= maxTimeMs || respSize >= maxBytes) break;
+    }
+
+    return data;
+}
+
+// ================== Parse GPS ====================
+struct GPSResult {
+    string lat;
+    string lon;
+    int responseTime;
+    size_t respSize;
+};
+
+// Convert NMEA ddmm.mmmm -> decimal degrees
+double nmeaToDecimal(const string& nmea, const string& dir) {
+    if (nmea.empty()) return 0.0;
+    double raw = stod(nmea);
+    double deg, min;
+
+    if (nmea.length() > 5) {
+        if (dir == "N" || dir == "S") { // Latitude (2 digits degrees)
+            deg = floor(raw / 100.0);
+            min = raw - (deg * 100.0);
+        } else { // Longitude (3 digits degrees)
+            deg = floor(raw / 100.0);
+            min = raw - (deg * 100.0);
+        }
+        double decimal = deg + (min / 60.0);
+        if (dir == "S" || dir == "W") decimal = -decimal;
+        return decimal;
+    }
+    return 0.0;
+}
+
+GPSResult parseNMEA(const string& resp, int elapsed, size_t size) {
+    GPSResult result;
+    result.responseTime = elapsed;
+    result.respSize = size;
+
+    vector<string> lines = split(resp, '\n');
+    for (string line : lines) {
+        if (line.find("$GNGGA") != string::npos || line.find("$GPGGA") != string::npos) {
+            vector<string> fields = split(line, ',');
+            if (fields.size() > 5) {
+                string lat = fields[2];
+                string latd = fields[3];
+                string lon = fields[4];
+                string lond = fields[5];
+
+                if (!lat.empty() && !lon.empty()) {
+                    double latDec = nmeaToDecimal(lat, latd);
+                    double lonDec = nmeaToDecimal(lon, lond);
+
+                    stringstream slat, slon;
+                    slat << fixed << setprecision(6) << latDec;
+                    slon << fixed << setprecision(6) << lonDec;
+
+                    result.lat = slat.str();
+                    result.lon = slon.str();
+                }
+            }
+        }
+    }
+    return result;
+}
+
+// ================== Print ====================
+void printTable(const vector<GPSResult>& results) {
+    cout << "\n+-------------+--------------+-------------+--------------+\n";
+    cout << "| Latitude    | Longitude    | Time (ms)   | Size (bytes) |\n";
+    cout << "+-------------+--------------+-------------+--------------+\n";
+    for (auto &r : results) {
+        cout << "| " << setw(11) << r.lat
+             << " | " << setw(12) << r.lon
+             << " | " << setw(11) << r.responseTime
+             << " | " << setw(12) << r.respSize
+             << " |\n";
+    }
+    cout << "+-------------+--------------+-------------+--------------+\n";
+}
+
+// ================== Send AT Command ====================
+string sendAT(HANDLE h, const string& cmd) {
+    string fullCmd = cmd + "\r\n";
+    DWORD written;
+    WriteFile(h, fullCmd.c_str(), (DWORD)fullCmd.size(), &written, NULL);
+
+    cout << ">> " << cmd << endl;
+
+    int elapsed = 0;
+    size_t size = 0;
+    string resp = readSerial(h, 512, 1000, elapsed, size);
+
+    cout << "<< (" << size << " bytes, " << elapsed << " ms)\n" << resp << endl;
+
+    return resp;
+}
+
+// ================== Main ====================
+int main() {
+    string port = "\\\\.\\COM17";  // change COM port
+    HANDLE h = openSerial(port);
+
+    // ---- Send standard AT commands ----
+    sendAT(h, "AT");             // Basic test
+    sendAT(h, "AT$MYGPSPWR=1");  // Power on GPS
+    sendAT(h, "AT+CSQ");         // Signal quality
+
+    // ---- Start GPS and collect positions ----
+    sendAT(h, "AT$MYGPSPOS=0,1");
+
+    vector<GPSResult> results;
+    for (int i = 0; i < 5; i++) {  // Collect 5 GPS samples
+        int elapsed = 0;
+        size_t size = 0;
+        string resp = readSerial(h, 512, 2000, elapsed, size);
+        GPSResult r = parseNMEA(resp, elapsed, size);
+
+        if (!r.lat.empty() && !r.lon.empty()) {
+            results.push_back(r);
+        }
+        Sleep(1000);
+    }
+
+    printTable(results);
+
+    CloseHandle(h);
+    return 0;
+}
