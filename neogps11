@@ -189,7 +189,7 @@ string sendAT(HANDLE h, const string& cmd) {
 
 // ================== Main ====================
 int main() {
-    string port = "\\\\.\\COM17";  // change COM port
+    string port = "\\\\.\\COM30";  // change COM port
     HANDLE h = openSerial(port);
 
     // ---- Send standard AT commands ----
@@ -201,8 +201,8 @@ int main() {
     sendAT(h, "AT$MYGPSPOS=0,1");
 
     // Define a fixed known location (example: Munich, Germany)
-    double fixedLat = 48.117300;
-    double fixedLon = 11.516667;
+    double fixedLat = 12.2851931;
+    double fixedLon = 76.6150257;
 
     vector<GPSResult> results;
     for (int i = 0; i < 5; i++) {  // Collect 5 GPS samples
